@@ -84,8 +84,8 @@ if __name__ == "__main__":
     encoded = []
     for i in range(len(encoded_en)):
         encoded.append([encoded_en[i], encoded_jp[i]])
-    write_data_json("data/stage/{}_unsorted_bpe.json".format(split_suffix), encoded)
+    write_data_json("data/stage/{}_unsorted_bpe.json".format(split_suffix), str(encoded))
     encoded = sorted(encoded, key=lambda x: len(x[0]))
-    write_data_json("data/stage/{}_bpe.json".format(split_suffix), encoded)
+    write_data_json("data/stage/{}_bpe.json".format(split_suffix), str(encoded))
 
     

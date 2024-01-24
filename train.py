@@ -31,7 +31,8 @@ class SentenceDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.data[idx]
+        # return the input and output sequences
+        return self.data[idx][0], self.data[idx][1]
 
 def custom_collate_fn(batch):
     # Sort the batch in the descending order of sequence length
@@ -55,13 +56,17 @@ if __name__ == "__main__":
 
     # Move pytorch dataset into dataloader.
     train_batch_size = 10
-    train_dataloader = DataLoader(train_data, batch_size=train_batch_size, shuffle=True)
-    print(f'Created `train_dataloader` with {len(train_dataloader)} batches!')
+    train_loader = DataLoader(train_data, batch_size=train_batch_size, shuffle=True)
+    print(f'Created `train_loader` with {len(train_loader)} batches!')
 
     # todo: create validation and test dataloaders
 
-    # BucketIterator for batching
-    train_dataloader = torchtext.data.BucketIterator(train_data, batch_size=train_batch_size, shuffle=True)
+    # BucketIterator for batching todo: maybe remove this
+    # train_loader = BucketIterator(train_data, batch_size=train_batch_size,
+    #                                             sort_key=lambda x: len(x[0]),
+    #                                             sort=False,
+    #                                             sort_within_batch=True,
+    #                                             shuffle=True)
 
     # Model, Loss Function, Optimizer
     dmodel = 512
@@ -78,12 +83,12 @@ if __name__ == "__main__":
     num_epochs = 5  # Example number of epochs
     for epoch in range(num_epochs):
         model.train()  # Set the model to training mode
-        for batch_idx, (data, target) in enumerate(train_loader):
-            data, target = data.to(device), target.to(device)
+        for batch_idx, (input_seq, output) in enumerate(train_loader):
+            input_seq, output_seq = input_seq.to(device), output_seq.to(device)
 
             # Forward pass
-            outputs = model(data)
-            loss = criterion(outputs, target)
+            outputs = model(input_seq, output_seq)
+            loss = criterion(outputs, output_seq)
 
             # Backward pass and optimization
             optimizer.zero_grad()  # Clear gradients from the previous step

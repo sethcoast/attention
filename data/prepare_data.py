@@ -2,6 +2,7 @@ import MeCab
 import nltk
 nltk.download('punkt')
 import math
+import json
 import sentencepiece as spm
 
 from nltk.tokenize import word_tokenize
@@ -12,6 +13,11 @@ def write_data(file_path, my_list):
     with open(file_path, "w", encoding="utf-8") as file:
         for item in my_list:
             file.write(item + "\n")
+
+def write_data_json(file_path, data):
+    # write en sentences
+    with open(file_path, "w", encoding="utf-8") as file:
+        json.dump(data, file)
 
 def load_data(file_path, en_save_path=None, ja_save_path=None, num_lines=math.inf):
     # split english and japanese sentences into separate lists
@@ -71,4 +77,8 @@ if __name__ == "__main__":
     # apply the models to the corpora (encode the sentences)
     encoded_en = [sp_en.encode(english_sentence, out_type=int) for english_sentence in english_sentences]
     encoded_jp = [sp_jp.encode(japanese_sentence, out_type=int) for japanese_sentence in japenese_sentences]
+
+    # write the encoded sentences to files
+    write_data_json("data/stage/en_bpe.txt", str(encoded_en))
+    write_data_json("data/stage/jp_bpe.txt", str(encoded_jp))
     

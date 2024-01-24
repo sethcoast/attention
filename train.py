@@ -3,25 +3,65 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
+import torchtext
 import torchvision
 import torchvision.transforms
+import json
 
 from model import TransformerNet
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
 # import matplotlib.pyplot as plt
 
+# ok I really need to prepare this fucking data first. Ok so here's my list of unanswered questions:
+# 1. How do I pad?
+    # do I pad to the length of the longest sequence? (seems easy enough, if not a little memory inefficient)
+# 2. How do I mask within a batch? Is there a way to do like a custom mask for each sequence?
 
+class SentenceDataset(Dataset):
+    def __init__(self, data_path):
+        # read the data
+        with open(data_path, 'r') as file:
+            self.data = json.loads(json.load(file))
+        
+        
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+def custom_collate_fn(batch):
+    # Sort the batch in the descending order of sequence length
+    batch.sort(key=lambda x: len(x), reverse=True)
+
+    # Separate the sequences and labels (if any) # todo: this seems unecessary, remove
+    sequences = [item[0] for item in batch]
+
+    # Pad sequences
+    padded_sequences = pad_sequence(sequences, batch_first=True, padding_value=0)
+
+    return padded_sequences
 
 if __name__ == "__main__":
     # Data loading 
     # sort sentences by length (todo: do this in prepare_data.py when you write the sentences to file)
     # apply transforms as necessary (pad here?)
-    en_data = sorted(en_data, key=lambda x: len(x))
-    jp_data = sorted(jp_data, key=lambda x: len(x))
+    data_dir = 'data/stage/'
+    split_suffix = 'test'
+    train_data = SentenceDataset(data_dir + split_suffix + '_bpe.json')
 
-    # todo: redo all of this below this line
-    train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
+    # Move pytorch dataset into dataloader.
+    train_batch_size = 10
+    train_dataloader = DataLoader(train_data, batch_size=train_batch_size, shuffle=True)
+    print(f'Created `train_dataloader` with {len(train_dataloader)} batches!')
+
+    # todo: create validation and test dataloaders
+
+    # BucketIterator for batching
+    train_dataloader = torchtext.data.BucketIterator(train_data, batch_size=train_batch_size, shuffle=True)
 
     # Model, Loss Function, Optimizer
     dmodel = 512

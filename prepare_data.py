@@ -63,11 +63,13 @@ if __name__ == "__main__":
     # load the data into separate lists
     en_path = "data/stage/english.txt"
     ja_path = "data/stage/japanese.txt"
-    english_sentences, japenese_sentences = load_data("data/split/test", en_path, ja_path)
+    split_suffix = "test"
+    english_sentences, japenese_sentences = load_data("data/split/" + split_suffix, en_path, ja_path)
+    vocab_size = 2000
 
     ## train BPE on each corpora (vocabulary size of 30,000)
-    spm.SentencePieceTrainer.train(input=en_path, model_prefix='en_bpe', vocab_size=2000)
-    spm.SentencePieceTrainer.train(input=ja_path, model_prefix='jp_bpe', vocab_size=2000)
+    spm.SentencePieceTrainer.train(input=en_path, model_prefix='en_bpe', vocab_size=vocab_size)
+    spm.SentencePieceTrainer.train(input=ja_path, model_prefix='jp_bpe', vocab_size=vocab_size)
 
     ## apply BPE to each corpora
     # load the trained models (necessary? or do the above lines return the models?)
@@ -78,7 +80,12 @@ if __name__ == "__main__":
     encoded_en = [sp_en.encode(english_sentence, out_type=int) for english_sentence in english_sentences]
     encoded_jp = [sp_jp.encode(japanese_sentence, out_type=int) for japanese_sentence in japenese_sentences]
 
-    # write the encoded sentences to files
-    write_data_json("data/stage/en_bpe.txt", str(encoded_en))
-    write_data_json("data/stage/jp_bpe.txt", str(encoded_jp))
+    # combine the sequences into a single list for training
+    encoded = []
+    for i in range(len(encoded_en)):
+        encoded.append([encoded_en[i], encoded_jp[i]])
+    write_data_json("data/stage/{}_unsorted_bpe.json".format(split_suffix), encoded)
+    encoded = sorted(encoded, key=lambda x: len(x[0]))
+    write_data_json("data/stage/{}_bpe.json".format(split_suffix), encoded)
+
     

@@ -29,7 +29,7 @@ class MultiheadAttentionBlock(nn.Module):
         self.mhAtt = nn.MultiheadAttention(dmodel, 8)
         self.dropout = nn.Dropout(0.1)
         # look-ahead mask
-        self.att_mask = self.create_look_ahead_mask()
+        # self.att_mask = self.create_look_ahead_mask()
     
     def forward(self, x):
         x = self.mhAtt(x)
@@ -37,7 +37,7 @@ class MultiheadAttentionBlock(nn.Module):
         
         return x
 
-    def create_look_ahead_mask(size):
+    def create_look_ahead_mask(self, size):
         # todo: double check that this is correct
         mask = torch.triu(torch.ones(size, size), diagonal=1)
         mask = mask.masked_fill(mask == 1, float('-inf'))
@@ -88,27 +88,38 @@ class DecoderLayer(nn.Module):
 
 class TransformerNet(nn.Module):
     # numLayers = 6 by default to mimic the parameters of the paper
-    def __init__(self, dmodel, numLayers = 6):
+    def __init__(self, vocab_size, dmodel, numLayers = 6):
         super(TransformerNet, self).__init__()
         # todo: define the positional encoding stuff?
-
-        # Instantiate encoder/decoder layers (EncoderLayer is employed inside the DecoderLayer class)
-        self.layers = nn.ModuleList()
+        # Embedding layer
+        self.embedding_layer = nn.Linear(vocab_size, dmodel)
+        # Instantiate encoder/decoder layers
+        self.encoder_layers = nn.ModuleList()
         for _ in range(numLayers):
-            self.layers.append(DecoderLayer(dmodel))
-        
+            self.encoder_layers.append(EncoderLayer(dmodel))
+        self.decoder_layers = nn.ModuleList()
+        for _ in range(numLayers):
+            self.decoder_layers.append(DecoderLayer(dmodel))
+        # Output layer
+        self.last = nn.Linear(dmodel, vocab_size)
+        self.last.weight = self.embedding_layer.weight # todo: double check this
+        self.softmax = nn.Softmax(dim=vocab_size)
         # todo: do I need an extra output layer (review the paper, you might)
     
     # todo: maybe rewrite this eventually
-    def forward(self, x):
-        # split x into input/output sequences
-        input, output = x[0], x[1]
-        # Embedding layers (multiply weights by √dmodel)
+    def forward(self, in_seq, out_seq):
+        # todo: Embedding layers (multiply weights by √dmodel (v2))
+        # todo: Contatenate input w/ positional encoding (v2)
+        # Encoder stack
+        in_encode = self.embedding_layer(in_seq) # shape = (batch_size, seq_len, dmodel)
+        for layer in self.encoder_layers:
+            in_encode = layer(in_encode)
+        # Decoder stack
+        out_encode = self.embedding_layer(out_seq)
+        for layer in self.decoder_layers:
+            out_encode = layer(in_encode, out_encode)
+        # Output layer
+        out = self.last(out_encode)
+        out = self.softmax(out)
 
-        # Contatenate w/ positional encoding (optional)
-
-        # Feed through the network
-        for layer in self.layers:
-            x = layer(in_emb, out_emb)
-
-        return x
+        return out

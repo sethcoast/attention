@@ -32,7 +32,7 @@ class SentenceDataset(Dataset):
 
     def __getitem__(self, idx):
         # return the input and output sequences
-        return self.data[idx][0], self.data[idx][1]
+        return torch.tensor(self.data[idx][0]), torch.tensor(self.data[idx][1])
 
 def custom_collate_fn(batch):
     # Sort the batch in the descending order of sequence length
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     train_data = SentenceDataset(data_dir + split_suffix + '_bpe.json')
 
     # Move pytorch dataset into dataloader.
-    train_batch_size = 10
+    train_batch_size = 1
     train_loader = DataLoader(train_data, batch_size=train_batch_size, shuffle=True)
     print(f'Created `train_loader` with {len(train_loader)} batches!')
 
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     num_epochs = 5  # Example number of epochs
     for epoch in range(num_epochs):
         model.train()  # Set the model to training mode
-        for batch_idx, (input_seq, output) in enumerate(train_loader):
+        for batch_idx, (input_seq, output_seq) in enumerate(train_loader):
             input_seq, output_seq = input_seq.to(device), output_seq.to(device)
 
             # Forward pass

@@ -69,7 +69,6 @@ class EncoderLayer(nn.Module):
 class DecoderLayer(nn.Module):
     def __init__(self, dmodel):
         super(DecoderLayer, self).__init__()
-        self.encoder = EncoderLayer(dmodel)
         self.mhaBlock1 = MultiheadAttentionBlock(dmodel, mask=True)
         self.ffBlock = FeedForwardBlock(dmodel)
         self.mhaBlock2 = MultiheadAttentionBlock(dmodel)
@@ -104,7 +103,6 @@ class TransformerNet(nn.Module):
         self.last = nn.Linear(dmodel, vocab_size)
         self.last.weight = self.embedding_layer.weight # todo: double check this
         self.softmax = nn.Softmax(dim=vocab_size)
-        # todo: do I need an extra output layer (review the paper, you might)
     
     # todo: maybe rewrite this eventually
     def forward(self, in_seq, out_seq):

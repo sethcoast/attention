@@ -21,10 +21,15 @@ import numpy as np
 # 2. How do I mask within a batch? Is there a way to do like a custom mask for each sequence?
 
 class SentenceDataset(Dataset):
-    def __init__(self, data_path):
+    def __init__(self, data_path, vocab_size):
         # read the data
         with open(data_path, 'r') as file:
             self.data = json.loads(json.load(file))
+        
+        # split sequences and one-hot encode
+        self.input = [nn.functional.one_hot(torch.tensor(sublist[0]), vocab_size).float() for sublist in self.data]
+        self.output = [nn.functional.one_hot(torch.tensor(sublist[1]), vocab_size).float() for sublist in self.data]
+
         
         
     def __len__(self):
@@ -32,7 +37,7 @@ class SentenceDataset(Dataset):
 
     def __getitem__(self, idx):
         # return the input and output sequences
-        return torch.tensor(self.data[idx][0]), torch.tensor(self.data[idx][1])
+        return self.input[idx], self.output[idx]
 
 def custom_collate_fn(batch):
     # Sort the batch in the descending order of sequence length
@@ -50,9 +55,10 @@ if __name__ == "__main__":
     # Data loading 
     # sort sentences by length (todo: do this in prepare_data.py when you write the sentences to file)
     # apply transforms as necessary (pad here?)
+    vocab_size = 2000
     data_dir = 'data/stage/'
     split_suffix = 'test'
-    train_data = SentenceDataset(data_dir + split_suffix + '_bpe.json')
+    train_data = SentenceDataset(data_dir + split_suffix + '_bpe.json', vocab_size)
 
     # Move pytorch dataset into dataloader.
     train_batch_size = 1
@@ -71,7 +77,7 @@ if __name__ == "__main__":
     # Model, Loss Function, Optimizer
     dmodel = 512
     H = 6
-    model = TransformerNet(dmodel, H)
+    model = TransformerNet(vocab_size, dmodel, H)
     criterion = nn.CrossEntropyLoss()  # todo: I'm pretty sure this is correct, but double check
     optimizer = optim.Adam(model.parameters(), lr=0.001) # todo: double check paper params
 

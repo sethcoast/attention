@@ -26,16 +26,14 @@ class FeedForwardBlock(nn.Module):
 class MultiheadAttentionBlock(nn.Module):
     def __init__(self, dmodel, mask=False):
         super(MultiheadAttentionBlock, self).__init__()
-        self.mhAtt = nn.MultiheadAttention(dmodel, 8)
-        self.dropout = nn.Dropout(0.1)
+        self.mhAtt = nn.MultiheadAttention(dmodel, 8, dropout=0.1, batch_first=True)
         # look-ahead mask
         # self.att_mask = self.create_look_ahead_mask()
     
-    def forward(self, x):
-        x = self.mhAtt(x)
-        x = self.dropout(x)
-        
-        return x
+    def forward(self, Q, K, V):
+        # print(Q.shape, K.shape, V.shape)
+        x = self.mhAtt(query=Q, key=K, value=V, need_weights=False)
+        return x[0]
 
     def create_look_ahead_mask(self, size):
         # todo: double check that this is correct
@@ -50,11 +48,12 @@ class EncoderLayer(nn.Module):
         # Define the attention layer
         self.mhaBlock = MultiheadAttentionBlock(dmodel)
         self.ff = FeedForwardBlock(dmodel)
+        self.norm = nn.LayerNorm(dmodel)
         
     
     def forward(self, x):
         # Multi Head Attention Sublayer()
-        out = self.mhaBlock(x)
+        out = self.mhaBlock(x, x, x)
         out += x # residual connection
         out = self.norm(out) # normalization
         
@@ -72,6 +71,7 @@ class DecoderLayer(nn.Module):
         self.mhaBlock1 = MultiheadAttentionBlock(dmodel, mask=True)
         self.ffBlock = FeedForwardBlock(dmodel)
         self.mhaBlock2 = MultiheadAttentionBlock(dmodel)
+        self.norm = nn.LayerNorm(dmodel)
     
     def forward(self, in_encoding, out_embedding):
         ## Multi Head Attention Sublayer 1 (masked)
@@ -80,9 +80,15 @@ class DecoderLayer(nn.Module):
         decoded += out_embedding # residual connection
         decoded = self.norm(decoded) # normalization
         ## Multi Head Attention Sublayer 2
-        # todo: do I need to concatenate or do something else?
-
+        decoded2 = self.mhaBlock1(decoded, in_encoding, in_encoding)
+        decoded2 += decoded # residual connection
+        decoded2 = self.norm(decoded2) # normalization
         ## Feed Forward Sublayer
+        decoded3 = self.ffBlock(decoded2)
+        decoded3 += decoded2 # residual connection
+        decoded3 = self.norm(decoded3) # normalization
+
+        return decoded3
 
 
 class TransformerNet(nn.Module):
@@ -101,8 +107,8 @@ class TransformerNet(nn.Module):
             self.decoder_layers.append(DecoderLayer(dmodel))
         # Output layer
         self.last = nn.Linear(dmodel, vocab_size)
-        self.last.weight = self.embedding_layer.weight # todo: double check this
-        self.softmax = nn.Softmax(dim=vocab_size)
+        self.last.weight = torch.nn.Parameter(self.embedding_layer.weight.t()) # todo: double check this
+        self.softmax = nn.Softmax(dim=1)
     
     # todo: maybe rewrite this eventually
     def forward(self, in_seq, out_seq):
